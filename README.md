@@ -1,39 +1,79 @@
 # Календарь звонков
 
-
+[![CI](https://github.com/Keeller/ai-for-developers-project-386/actions/workflows/ci.yml/badge.svg)](https://github.com/Keeller/ai-for-developers-project-386/actions/workflows/ci.yml)
 [![hexlet-check](https://github.com/Keeller/ai-for-developers-project-386/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Keeller/ai-for-developers-project-386/actions)
 
-Разработайте совместно с ИИ сервис для бронирования календаря
-
-Учебный проект Хекслета: https://ru.hexlet.io/programs/ai-for-developers
-Как это должно работать: https://files.hexlet.app/a/2ipc5m
+Учебный сервис для создания типов встреч, публикации страницы бронирования и
+записи на свободные временные слоты. Сейчас в репозитории находится базовый
+технический каркас без предметной функциональности.
 
 ## Стек
 
-- Разное
+- Node.js 24 и npm workspaces
+- Fastify и TypeScript — backend
+- React, Vite и Mantine — frontend
+- Vitest — тесты
+- ESLint и Prettier — статические проверки
+- GitHub Actions и release-please — CI и релизы
 
 ## Установка
-
-<!-- Опишите установку: клонирование, зависимости, переменные окружения -->
 
 ```bash
 git clone https://github.com/Keeller/ai-for-developers-project-386.git
 cd ai-for-developers-project-386
+npm ci
 ```
 
-## Использование
+## Локальный запуск
 
-<!-- Добавьте примеры запуска и запись asciinema — именно это смотрит работодатель -->
+```bash
+npm run dev
+```
+
+После запуска доступны:
+
+- frontend — <http://localhost:5173>;
+- проверка backend — <http://127.0.0.1:3000/api/health>.
+
+Vite перенаправляет запросы frontend с префиксом `/api` на локальный Fastify.
+Порт backend можно изменить переменной `PORT`, адрес — переменной `HOST`.
+
+## Проверки
+
+```bash
+npm test              # дымовой HTTP-тест
+npm run lint          # ESLint
+npm run format:check  # Prettier без изменения файлов
+npm run build         # production-сборка обоих приложений
+npm run check         # все проверки последовательно
+```
+
+GitHub Actions выполняет `npm run check` на каждый push и pull request.
+
+## Релизы
+
+Сообщения коммитов следуют [Conventional Commits](https://www.conventionalcommits.org/):
+например, `feat: add booking page` или `fix: validate slot duration`.
+После изменений в `main` release-please поддерживает release PR с версией и
+`CHANGELOG.md`.
+
+Для стандартного `GITHUB_TOKEN` в настройках репозитория должны быть включены
+права Actions на запись и создание pull request.
+
+## Документы продукта
+
+- [Исследование пользовательских сценариев](product/research.md)
+- [Business Requirements Document](product/brd.md)
 
 ---
 
 <details>
 <summary>Автоматические тесты Хекслета</summary>
 
-Тесты запускаются на каждый коммит. За запуск отвечает файл `.github/workflows/hexlet-check.yml` — не удаляйте и не переименовывайте ни его, ни репозиторий.
+Тесты запускаются на каждый коммит. За запуск отвечает файл
+`.github/workflows/hexlet-check.yml` — не удаляйте и не переименовывайте ни его,
+ни репозиторий.
 
 </details>
 
-## О Хекслете
-
-[Хекслет](https://ru.hexlet.io/) — школа программирования: авторские программы обучения с практикой, поддержкой наставников и реальными проектами, которые остаются в резюме. Этот репозиторий — один из таких проектов.
+Учебный проект [Хекслета](https://ru.hexlet.io/programs/ai-for-developers).
