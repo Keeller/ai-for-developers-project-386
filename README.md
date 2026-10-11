@@ -50,6 +50,21 @@ npm run check         # все проверки последовательно
 
 GitHub Actions выполняет `npm run check` на каждый push и pull request.
 
+## Отчёты качества
+
+```bash
+npm run report
+```
+
+Команда собирает неблокирующие отчёты type-aware ESLint и SonarJS, Knip,
+jscpd и Vitest Coverage в каталог `reports`. Основная точка входа —
+`reports/README.md`; подробные HTML-отчёты создаются для покрытия и
+дублирования кода.
+
+На GitHub каждый CI-прогон прикрепляет каталог как artifact
+`quality-reports`. Найденные проблемы пока не влияют на итог CI и служат только
+для наблюдения; обязательными остаются проверки `npm run check`.
+
 ## Релизы
 
 Сообщения коммитов следуют [Conventional Commits](https://www.conventionalcommits.org/):

@@ -8,6 +8,7 @@
 - Lint: `npm run lint`
 - Build: `npm run build`
 - Full check: `npm run check`
+- Advisory quality report: `npm run report`
 
 ## Structure
 
@@ -20,6 +21,7 @@
 
 - Use Node.js 24, npm, strict TypeScript and ESM.
 - Run `npm run check` before every commit.
+- Quality reports in `reports/` are advisory and do not gate CI.
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`,
   `refactor:`, `chore:` or `ci:`.
 - Do not edit `.github/workflows/hexlet-check.yml` unless explicitly asked.
