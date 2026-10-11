@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+reports
+.idea
+.git
+.github/workflows/hexlet-check.yml
+Описание проекта.docx
