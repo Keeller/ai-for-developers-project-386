@@ -24,6 +24,23 @@
 - `product` — product research and business requirements.
 - `.github/workflows` — CI, releases and the protected Hexlet check.
 
+## Agent skills
+
+### Issue tracker
+
+Issues, specifications, and tickets live in this repository's GitHub Issues.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default five-role triage vocabulary. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use the single-context domain layout at the repository root. See
+`docs/agents/domain.md`.
+
 ## Rules
 
 - Use Node.js 24, npm, strict TypeScript and ESM.

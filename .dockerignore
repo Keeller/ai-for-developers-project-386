@@ -1,5 +1,6 @@
 .git
 .github
+.agents
 .idea
 .vscode
 node_modules
