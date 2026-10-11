@@ -22,6 +22,8 @@
     "report:eslint": "eslint apps --config eslint.quality.config.js",
     "report:dead-code": "knip --no-exit-code --no-progress",
     "report:duplicates": "jscpd apps --pattern \"**/*.{ts,tsx}\" --ignore \"**/*.test.ts,**/dist/**\" --min-lines 5 --min-tokens 50 --reporters console --no-colors --no-tips",
+    "docker:build": "docker build --tag calendar-booking:local .",
+    "docker:run": "docker run --rm --init --publish 3000:3000 --name calendar-booking calendar-booking:local",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "check": "npm run format:check && npm run lint && npm test && npm run build"

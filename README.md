@@ -15,6 +15,7 @@
 - Vitest — тесты
 - ESLint и Prettier — статические проверки
 - GitHub Actions и release-please — CI и релизы
+- Docker — единый production-образ frontend и backend
 
 ## Установка
 
@@ -38,6 +39,27 @@ npm run dev
 Vite перенаправляет запросы frontend с префиксом `/api` на локальный Fastify.
 Порт backend можно изменить переменной `PORT`, адрес — переменной `HOST`.
 
+## Запуск в Docker
+
+Production-образ собирает оба приложения и запускает один Fastify-процесс,
+который отдаёт API и статические файлы frontend:
+
+```bash
+npm run docker:build
+npm run docker:run
+```
+
+После запуска приложение доступно на <http://localhost:3000>, health endpoint —
+на <http://localhost:3000/api/health>. Аналогичный запуск через Compose:
+
+```bash
+docker compose up --build
+```
+
+Контейнер запускается от непривилегированного пользователя и содержит встроенную
+проверку работоспособности. Переменные `HOST` и `PORT` внутри готового образа по
+умолчанию равны `0.0.0.0` и `3000`.
+
 ## Проверки
 
 ```bash
@@ -48,7 +70,8 @@ npm run build         # production-сборка обоих приложений
 npm run check         # все проверки последовательно
 ```
 
-GitHub Actions выполняет `npm run check` на каждый push и pull request.
+GitHub Actions выполняет `npm run check`, собирает Docker-образ и проверяет в
+контейнере frontend и `/api/health` на каждый push и pull request.
 
 ## Отчёты качества
 

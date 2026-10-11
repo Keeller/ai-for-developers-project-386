@@ -7,6 +7,8 @@
 - Test: `npm test`
 - Lint: `npm run lint`
 - Build: `npm run build`
+- Build Docker image: `npm run docker:build`
+- Run Docker image: `npm run docker:run`
 - Full check: `npm run check`
 - Advisory quality report: `npm run report`
 
@@ -22,6 +24,7 @@
 - Use Node.js 24, npm, strict TypeScript and ESM.
 - Run `npm run check` before every commit.
 - Quality reports in `reports/` are advisory and do not gate CI.
+- The production Docker image must serve both the web app and API on port 3000.
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`,
   `refactor:`, `chore:` or `ci:`.
 - Do not edit `.github/workflows/hexlet-check.yml` unless explicitly asked.

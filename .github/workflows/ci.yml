@@ -41,3 +41,41 @@ jobs:
           path: reports
           if-no-files-found: warn
           retention-days: 14
+
+  container:
+    name: Build and smoke-test Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build --tag calendar-booking:ci .
+
+      - name: Start container and smoke-test application
+        run: |
+          docker run --detach \
+            --name calendar-booking-ci \
+            --publish 127.0.0.1:3000:3000 \
+            calendar-booking:ci
+
+          for attempt in {1..30}; do
+            health="$(curl --fail --silent http://127.0.0.1:3000/api/health || true)"
+
+            if [ "$health" = '{"status":"ok","service":"calendar-api"}' ]; then
+              curl --fail --silent http://127.0.0.1:3000/ \
+                | grep --fixed-strings '<div id="root"></div>'
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          docker logs calendar-booking-ci
+          exit 1
+
+      - name: Stop container
+        if: always()
+        run: docker rm --force calendar-booking-ci || true
