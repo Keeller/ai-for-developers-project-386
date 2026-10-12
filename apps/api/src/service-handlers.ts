@@ -22,6 +22,7 @@ const databaseUnavailable = {
 }
 
 const calendarScheduleLock = 'calendar-schedule'
+const slotStepMinutes = 30 as const
 
 type EventTypeRow = {
   created_at: Date
@@ -476,7 +477,7 @@ function listSlotsForOwnerDate(
         }
       }
 
-      localStart = localStart.add({ minutes: 15 })
+      localStart = localStart.add({ minutes: slotStepMinutes })
     }
   }
 
@@ -514,8 +515,7 @@ async function isEligibleBookingStart(
   const effectiveIntervals = getEffectiveIntervals(weeklyDay, exception)
   const localStart = ownerStart.toPlainDateTime()
   const end = start.add({ minutes: eventType.duration_minutes })
-  const onGrid =
-    localStart.minute % 15 === 0 &&
+  const startsAtWholeMinute =
     localStart.second === 0 &&
     localStart.millisecond === 0 &&
     localStart.microsecond === 0 &&
@@ -527,9 +527,15 @@ async function isEligibleBookingStart(
     const intervalEnd = ownerDate.toPlainDateTime(
       Temporal.PlainTime.from(interval.end),
     )
+    const minutesFromIntervalStart =
+      localStart.hour * 60 +
+      localStart.minute -
+      (intervalStart.hour * 60 + intervalStart.minute)
     return (
+      startsAtWholeMinute &&
       Temporal.PlainDateTime.compare(localStart, intervalStart) >= 0 &&
       Temporal.PlainDateTime.compare(localStart, intervalEnd) < 0 &&
+      minutesFromIntervalStart % slotStepMinutes === 0 &&
       Temporal.Instant.compare(
         end,
         getIntervalEndInstant(ownerDate, interval, availability.timeZone),
@@ -537,7 +543,7 @@ async function isEligibleBookingStart(
     )
   })
 
-  if (!onGrid || !fits) {
+  if (!fits) {
     return false
   }
 
@@ -931,6 +937,7 @@ export function createServiceHandlers(
         eventType: toPublicEventType(eventType),
         ownerTimeZone: availability.timeZone,
         guestTimeZone: request.query.guestTimeZone,
+        slotStepMinutes,
         horizonStartsOn: firstOwnerDate.toString(),
         horizonEndsOn: lastOwnerDate.toString(),
         generatedAt: nowInstant.toString(),
