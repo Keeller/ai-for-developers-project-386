@@ -1,111 +1,128 @@
-import { useEffect, useState } from 'react'
-
 import {
   Badge,
-  Center,
-  Code,
+  Button,
   Container,
-  Group,
-  Loader,
   Paper,
+  SimpleGrid,
   Stack,
   Text,
   Title,
 } from '@mantine/core'
+import { Link, Route, Routes } from 'react-router-dom'
 
-type HealthResponse = {
-  status: 'ok'
-  service: string
-}
+const CALL_FACTS = ['30 минут', 'Без регистрации', 'Без переписки']
 
-export default function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    async function checkApi() {
-      try {
-        const response = await fetch('/api/health', {
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          throw new Error(`Backend returned HTTP ${response.status}`)
-        }
-
-        setHealth((await response.json()) as HealthResponse)
-      } catch (requestError) {
-        if (!controller.signal.aborted) {
-          setError(
-            requestError instanceof Error
-              ? requestError.message
-              : 'Не удалось проверить backend',
-          )
-        }
-      }
-    }
-
-    void checkApi()
-
-    return () => controller.abort()
-  }, [])
-
-  const isLoading = health === null && error === null
-
+function HomePage() {
   return (
-    <Center component="main" className="app-shell">
-      <Container size="sm" w="100%">
-        <Stack gap="xl">
-          <Stack gap="xs">
-            <Badge variant="light" color="indigo" w="fit-content">
-              Базовый каркас
+    <main className="page-shell">
+      <Container className="hero" size="md">
+        <Stack align="center" gap="xl">
+          <Stack align="center" gap="md" className="hero-copy">
+            <Text className="product-name">Запись на звонок</Text>
+            <Badge color="indigo" radius="xl" size="lg" variant="light">
+              Простая онлайн-запись
             </Badge>
-            <Title order={1}>Календарь звонков</Title>
-            <Text c="dimmed" size="lg">
-              Frontend и backend готовы к разработке сценариев встреч и
-              бронирования.
+            <Title className="hero-title" order={1} ta="center">
+              Выберите удобное время для звонка
+            </Title>
+            <Text c="dimmed" className="hero-description" size="xl" ta="center">
+              Свободные 30-минутные интервалы, запись без регистрации и долгой
+              переписки
             </Text>
           </Stack>
 
-          <Paper withBorder radius="md" p="xl">
-            <Stack gap="md">
-              <Group justify="space-between" align="center">
-                <div>
-                  <Text fw={600}>Состояние backend</Text>
-                  <Text c="dimmed" size="sm">
-                    <Code>/api/health</Code>
-                  </Text>
-                </div>
+          <Button
+            className="primary-action"
+            component={Link}
+            radius="xl"
+            size="lg"
+            to="/book"
+          >
+            Записаться
+          </Button>
 
-                {isLoading && <Loader size="sm" />}
-                {health && (
-                  <Badge color="teal" variant="light">
-                    Доступен
-                  </Badge>
-                )}
-                {error && (
-                  <Badge color="red" variant="light">
-                    Недоступен
-                  </Badge>
-                )}
-              </Group>
-
-              {health && (
-                <Text size="sm">
-                  Сервис <Code>{health.service}</Code> ответил успешно.
+          <SimpleGrid
+            className="call-facts"
+            cols={{ base: 1, xs: 3 }}
+            component="ul"
+            spacing="md"
+          >
+            {CALL_FACTS.map((fact) => (
+              <Paper component="li" key={fact} p="md" radius="lg" withBorder>
+                <Text fw={600} ta="center">
+                  {fact}
                 </Text>
-              )}
-              {error && (
-                <Text c="red" size="sm">
-                  {error}
-                </Text>
-              )}
-            </Stack>
-          </Paper>
+              </Paper>
+            ))}
+          </SimpleGrid>
         </Stack>
       </Container>
-    </Center>
+    </main>
+  )
+}
+
+type StatusPageProps = Readonly<{
+  badge: string
+  description: string
+  title: string
+}>
+
+function StatusPage({ badge, description, title }: StatusPageProps) {
+  return (
+    <main className="page-shell">
+      <Container size="xs" w="100%">
+        <Paper className="status-card" p="xl" radius="xl" withBorder>
+          <Stack align="center" gap="lg">
+            <Text className="product-name">Запись на звонок</Text>
+            <Badge color="indigo" radius="xl" variant="light">
+              {badge}
+            </Badge>
+            <Title order={1} ta="center">
+              {title}
+            </Title>
+            <Text c="dimmed" size="lg" ta="center">
+              {description}
+            </Text>
+            <Button
+              component={Link}
+              radius="xl"
+              size="md"
+              to="/"
+              variant="light"
+            >
+              На главную
+            </Button>
+          </Stack>
+        </Paper>
+      </Container>
+    </main>
+  )
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<HomePage />} path="/" />
+      <Route
+        element={
+          <StatusPage
+            badge="Скоро"
+            description="Мы готовим выбор свободного времени"
+            title="Раздел записи скоро появится"
+          />
+        }
+        path="/book"
+      />
+      <Route
+        element={
+          <StatusPage
+            badge="404"
+            description="Проверьте адрес или вернитесь на главную"
+            title="Страница не найдена"
+          />
+        }
+        path="*"
+      />
+    </Routes>
   )
 }
