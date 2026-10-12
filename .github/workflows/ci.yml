@@ -124,13 +124,14 @@ jobs:
 
       - name: Start production stack and smoke-test persistence
         run: |
+          export APP_PORT=3101
           docker compose --project-name calendar-booking-ci up --build --detach
 
           for attempt in {1..30}; do
-            health="$(curl --fail --silent http://127.0.0.1:3000/api/health || true)"
+            health="$(curl --fail --silent http://127.0.0.1:${APP_PORT}/api/health || true)"
 
             if [ "$health" = '{"status":"ok","service":"calendar-api"}' ]; then
-              curl --fail --silent http://127.0.0.1:3000/ \
+              curl --fail --silent http://127.0.0.1:${APP_PORT}/ \
                 | grep --fixed-strings '<div id="root"></div>'
               break
             fi
@@ -144,19 +145,19 @@ jobs:
             --request POST \
             --header 'content-type: application/json' \
             --data '{"publicId":"ci-persistence","name":"CI persistence","durationMinutes":30}' \
-            http://127.0.0.1:3000/api/manage/event-types
+            http://127.0.0.1:${APP_PORT}/api/manage/event-types
 
           docker compose --project-name calendar-booking-ci restart app
 
           for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then
+            if curl --fail --silent http://127.0.0.1:${APP_PORT}/api/health >/dev/null; then
               break
             fi
 
             sleep 1
           done
 
-          curl --fail --silent http://127.0.0.1:3000/api/manage/event-types \
+          curl --fail --silent http://127.0.0.1:${APP_PORT}/api/manage/event-types \
             | grep --fixed-strings 'ci-persistence'
 
       - name: Stop production stack
