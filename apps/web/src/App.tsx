@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Container,
+  Group,
   Paper,
   SimpleGrid,
   Stack,
@@ -22,6 +23,7 @@ import {
 } from './pages/booking'
 import { ManageBookingsPage } from './pages/bookings'
 import { ManageAvailabilityPage } from './pages/availability'
+import { OwnerDashboardPage } from './pages/owner-dashboard'
 
 const CALL_FACTS = ['Разная длительность', 'Без регистрации', 'Без переписки']
 
@@ -44,15 +46,26 @@ function HomePage() {
             </Text>
           </Stack>
 
-          <Button
-            className="primary-action"
-            component={Link}
-            radius="xl"
-            size="lg"
-            to="/book"
-          >
-            Записаться
-          </Button>
+          <Group justify="center">
+            <Button
+              className="primary-action"
+              component={Link}
+              radius="xl"
+              size="lg"
+              to="/book"
+            >
+              Записаться
+            </Button>
+            <Button
+              component={Link}
+              radius="xl"
+              size="lg"
+              to="/manage"
+              variant="subtle"
+            >
+              Кабинет владельца
+            </Button>
+          </Group>
 
           <SimpleGrid
             className="call-facts"
@@ -119,6 +132,7 @@ export default function App() {
       <Route element={<PublicEventTypesPage />} path="/book" />
       <Route element={<BookingPage />} path="/book/:publicId" />
       <Route element={<BookingSuccessPage />} path="/book/:publicId/success" />
+      <Route element={<OwnerDashboardPage />} path="/manage" />
       <Route element={<ManageEventTypesPage />} path="/manage/event-types" />
       <Route element={<NewEventTypePage />} path="/manage/event-types/new" />
       <Route

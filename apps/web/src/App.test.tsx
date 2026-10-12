@@ -84,3 +84,25 @@ describe('public routes', () => {
     )
   })
 })
+
+describe('owner routes', () => {
+  it('Владелец календаря видит в кабинете переходы ко всем разделам управления', () => {
+    renderApp('/manage')
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Кабинет Владельца календаря',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Управлять Типами событий' }),
+    ).toHaveAttribute('href', '/manage/event-types')
+    expect(
+      screen.getByRole('link', { name: 'Настроить Доступность' }),
+    ).toHaveAttribute('href', '/manage/availability')
+    expect(
+      screen.getByRole('link', { name: 'Открыть Бронирования' }),
+    ).toHaveAttribute('href', '/manage/bookings')
+  })
+})
