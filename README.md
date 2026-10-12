@@ -6,6 +6,14 @@
 Учебный сервис, в котором Владелец календаря публикует Типы событий и
 Доступность, а Гость выбирает свободный Слот и создаёт Бронирование.
 
+## Опубликованное приложение
+
+- Production: <https://calendar-booking-production-382e.up.railway.app>
+- Health endpoint: <https://calendar-booking-production-382e.up.railway.app/api/health>
+
+Приложение развёрнуто в Railway из корневого `Dockerfile` и использует
+постоянную PostgreSQL-базу.
+
 ## Стек
 
 - Node.js 24 и npm workspaces
