@@ -60,11 +60,13 @@ union DurationMinutes {
 scalar IanaTimeZone extends string;
 
 @minLength(1)
-@maxLength(100)
+@maxLength(200)
 scalar GuestName extends string;
 
-@format("email")
-@maxLength(254)
+// The handler trims surrounding whitespace before validating the normalized
+// address, so transport validation deliberately accepts a wider raw value.
+@minLength(1)
+@maxLength(512)
 scalar GuestEmail extends string;
 
 @minLength(16)

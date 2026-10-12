@@ -84,6 +84,24 @@ function detectedTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
+function groupSlotsByGuestDate(days: SlotWindow['days']) {
+  const byDate = new Map<string, AvailableSlot[]>()
+  const orderedSlots = days
+    .flatMap((day) => day.slots)
+    .toSorted((left, right) => left.startAt.localeCompare(right.startAt))
+
+  for (const slot of orderedSlots) {
+    const daySlots = byDate.get(slot.guestLocalDate) ?? []
+    daySlots.push(slot)
+    byDate.set(slot.guestLocalDate, daySlots)
+  }
+
+  return [...byDate].map(([guestLocalDate, slots]) => ({
+    guestLocalDate,
+    slots,
+  }))
+}
+
 export function BookingPage() {
   const { publicId = '' } = useParams()
   const navigate = useNavigate()
@@ -211,9 +229,9 @@ export function BookingPage() {
               Проверьте эту страницу позже.
             </Alert>
           ) : null}
-          {slots.days.map((day) => (
-            <section key={day.ownerDate}>
-              <Title order={2}>{day.ownerDate}</Title>
+          {groupSlotsByGuestDate(slots.days).map((day) => (
+            <section key={day.guestLocalDate}>
+              <Title order={2}>{day.guestLocalDate}</Title>
               <Group mt="sm">
                 {day.slots.map((slot) => (
                   <Button

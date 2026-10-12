@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { Client } from 'pg'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -180,6 +182,92 @@ describe('публичные Слоты through real HTTP and PostgreSQL', () =>
           guestUtcOffset: '+01:00',
         },
       ])
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('не выпускает реальную длительность Типа события за границу интерва в DST-gap', async () => {
+    const dstNow = new Date('2026-03-28T00:00:00.000Z')
+    const app = buildApp({ databaseUrl, clock: () => dstNow })
+    await app.listen({ host: '127.0.0.1', port: 0 })
+    const address = app.server.address()
+
+    if (address === null || typeof address === 'string') {
+      throw new Error('The test server did not expose a TCP port')
+    }
+
+    const baseUrl = `http://127.0.0.1:${String(address.port)}`
+
+    try {
+      await fetch(`${baseUrl}/api/manage/event-types`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          publicId: 'spring-forward-call',
+          name: 'Весенний переход',
+          durationMinutes: 60,
+        }),
+      })
+      await fetch(`${baseUrl}/api/manage/availability`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          timeZone: 'Europe/Berlin',
+          week: [
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+            'saturday',
+            'sunday',
+          ].map((weekday) => ({
+            weekday,
+            enabled: weekday === 'sunday',
+            intervals:
+              weekday === 'sunday' ? [{ start: '01:30', end: '03:30' }] : [],
+          })),
+        }),
+      })
+
+      const response = await fetch(
+        `${baseUrl}/api/event-types/spring-forward-call/slots?guestTimeZone=Europe%2FBerlin`,
+      )
+      const payload = (await response.json()) as {
+        days: Array<{
+          ownerDate: string
+          slots: Array<{ guestLocalStart: string }>
+        }>
+      }
+      const transitionDay = payload.days.find(
+        (day) => day.ownerDate === '2026-03-29',
+      )
+
+      expect(response.status).toBe(200)
+      expect(transitionDay?.slots.map((slot) => slot.guestLocalStart)).toEqual([
+        '01:30',
+      ])
+
+      const staleCandidateResponse = await fetch(`${baseUrl}/api/bookings`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': randomUUID(),
+        },
+        body: JSON.stringify({
+          eventTypePublicId: 'spring-forward-call',
+          startAt: '2026-03-29T00:45:00.000Z',
+          guestName: 'Анна',
+          guestEmail: 'anna@example.com',
+          guestTimeZone: 'Europe/Berlin',
+        }),
+      })
+
+      expect(staleCandidateResponse.status).toBe(409)
+      await expect(staleCandidateResponse.json()).resolves.toMatchObject({
+        code: 'slot_unavailable',
+      })
     } finally {
       await app.close()
     }
