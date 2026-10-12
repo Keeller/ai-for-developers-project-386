@@ -55,6 +55,20 @@ Use the single-context domain layout at the repository root. See
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`,
   `chore:` or `ci:`.
 
+## TDD workflow
+
+- For every feature or bug fix that changes behavior, read and follow
+  `.agents/skills/tdd/SKILL.md` before changing production code.
+- Before the first test, propose the public seams to test, state what each seam
+  catches and misses, and confirm them with the user.
+- Work in vertical red-green slices: add one behavior-focused test, run it and
+  observe the expected failure, add only enough production code to pass it,
+  then repeat for the next behavior.
+- Test observable behavior through public interfaces. Keep tests independent of
+  private methods, internal collaborators, and implementation structure.
+- Refactor only after the behavior slices are green, then rerun the relevant
+  tests and the repository checks.
+
 ## Rules
 
 - Use Node.js 24, npm, strict TypeScript and ESM.
