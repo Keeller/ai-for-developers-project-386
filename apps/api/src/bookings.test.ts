@@ -122,6 +122,69 @@ describe('Бронирования through real HTTP and PostgreSQL', () => {
     }
   })
 
+  it('принимает только начала 30-минутной сетки от границы Доступности', async () => {
+    const run = await startApp()
+
+    try {
+      await fetch(`${run.baseUrl}/api/manage/event-types`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          publicId: 'grid-call',
+          name: 'Звонок по сетке',
+          durationMinutes: 30,
+        }),
+      })
+      const weekdays = [
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+        'sunday',
+      ]
+      await fetch(`${run.baseUrl}/api/manage/availability`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          timeZone: 'Europe/Moscow',
+          week: weekdays.map((weekday) => ({
+            weekday,
+            enabled: weekday === 'monday',
+            intervals:
+              weekday === 'monday' ? [{ start: '09:15', end: '11:15' }] : [],
+          })),
+        }),
+      })
+
+      const create = (startAt: string) =>
+        fetch(`${run.baseUrl}/api/bookings`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-key': randomUUID(),
+          },
+          body: JSON.stringify({
+            eventTypePublicId: 'grid-call',
+            startAt,
+            guestName: 'Анна',
+            guestEmail: 'anna@example.com',
+            guestTimeZone: 'Europe/Moscow',
+          }),
+        })
+
+      expect((await create('2026-10-12T06:45:00.000Z')).status).toBe(201)
+      const offGridResponse = await create('2026-10-12T07:30:00.000Z')
+      expect(offGridResponse.status).toBe(409)
+      await expect(offGridResponse.json()).resolves.toMatchObject({
+        code: 'slot_unavailable',
+      })
+    } finally {
+      await run.app.close()
+    }
+  })
+
   it('показывает Владельцу будущие Бронирования со snapshot Типа события', async () => {
     const run = await startApp()
 

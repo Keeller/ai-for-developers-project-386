@@ -3,6 +3,8 @@ import { spawn, spawnSync } from 'node:child_process'
 const databaseUrl =
   process.env.TEST_DATABASE_URL ??
   'postgres://calendar:test@127.0.0.1:55433/calendar_booking_test'
+const playwrightPort = process.env.PLAYWRIGHT_PORT ?? '3000'
+const baseUrl = `http://127.0.0.1:${playwrightPort}`
 
 export default async function globalSetup() {
   const server = spawn(process.execPath, ['apps/api/dist/server.js'], {
@@ -11,7 +13,7 @@ export default async function globalSetup() {
       DATABASE_URL: databaseUrl,
       HOST: '127.0.0.1',
       NODE_ENV: 'production',
-      PORT: '3000',
+      PORT: playwrightPort,
     },
     stdio: 'ignore',
     windowsHide: true,
@@ -23,7 +25,7 @@ export default async function globalSetup() {
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:3000/api/health')
+      const response = await fetch(`${baseUrl}/api/health`)
       if (response.ok) break
     } catch {
       // The API is still starting.
