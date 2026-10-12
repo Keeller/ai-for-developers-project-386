@@ -57,17 +57,17 @@ export function ManageBookingsPage() {
           <Alert color="orange" title="Учебное демо без авторизации">
             Не используйте этот открытый раздел для чувствительных данных.
           </Alert>
-          <Title order={1}>Предстоящие встречи</Title>
+          <Title order={1}>Предстоящие Бронирования</Title>
           {data === null && !error ? <Loader aria-label="Загрузка" /> : null}
           {error ? (
-            <Alert color="red" title="Не удалось загрузить встречи">
+            <Alert color="red" title="Не удалось загрузить Бронирования">
               <Button mt="sm" onClick={() => void load()} variant="light">
                 Повторить
               </Button>
             </Alert>
           ) : null}
           {data?.items.length === 0 ? (
-            <Alert title="Предстоящих встреч нет" />
+            <Alert title="Предстоящих Бронирований нет" />
           ) : null}
           {data?.items.map((booking) => {
             const formatter = new Intl.DateTimeFormat('ru-RU', {

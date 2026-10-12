@@ -65,7 +65,7 @@ describe('generated contract routes', () => {
       expect(validResponse.status).toBe(503)
       await expect(validResponse.json()).resolves.toEqual({
         code: 'internal_error',
-        message: 'This contract route has not been implemented yet.',
+        message: 'База данных временно недоступна.',
       })
     } finally {
       await app.close()

@@ -99,7 +99,7 @@ describe('публичное Бронирование', () => {
               {
                 startAt: '2026-10-12T09:00:00Z',
                 endAt: '2026-10-12T09:30:00Z',
-                guestLocalDate: '2026-10-12',
+                guestLocalDate: '2026-10-11',
                 guestLocalStart: '12:00',
                 guestUtcOffset: '+03:00',
               },
@@ -131,6 +131,9 @@ describe('публичное Бронирование', () => {
 
     renderApp('/book')
     await user.click(await screen.findByRole('link', { name: /Знакомство/ }))
+    expect(
+      await screen.findByRole('heading', { name: '2026-10-11' }),
+    ).toBeVisible()
     await user.click(await screen.findByRole('button', { name: /12:00/ }))
     await user.type(screen.getByLabelText(/Имя/), 'Анна')
     await user.type(screen.getByLabelText(/Email/), 'anna@example.com')
@@ -143,7 +146,7 @@ describe('публичное Бронирование', () => {
     expect(screen.getByText(/Europe\/Moscow/)).toBeInTheDocument()
   })
 
-  it('показывает Владельцу встречу в общем списке', async () => {
+  it('показывает Владельцу Бронирование в общем списке', async () => {
     vi.mocked(ownerBookingsListFutureBookings).mockResolvedValue({
       data: {
         calendarTimeZone: 'Europe/Moscow',

@@ -16,10 +16,12 @@ import type {
   Weekday,
 } from './generated/types.gen.js'
 
-const notImplemented = {
+const databaseUnavailable = {
   code: 'internal_error' as const,
-  message: 'This contract route has not been implemented yet.',
+  message: 'База данных временно недоступна.',
 }
+
+const calendarScheduleLock = 'calendar-schedule'
 
 type EventTypeRow = {
   created_at: Date
@@ -46,6 +48,37 @@ type BookingRow = {
 }
 
 type Queryable = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>
+
+async function withTransaction<Result>(
+  database: Pool,
+  operation: (client: PoolClient) => Promise<Result>,
+): Promise<Result> {
+  const client = await database.connect()
+
+  try {
+    await client.query('BEGIN')
+    const result = await operation(client)
+    await client.query('COMMIT')
+    return result
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+async function lockCalendarScheduleForBooking(database: Queryable) {
+  await database.query('SELECT pg_advisory_xact_lock_shared(hashtext($1))', [
+    calendarScheduleLock,
+  ])
+}
+
+async function lockCalendarScheduleForUpdate(database: Queryable) {
+  await database.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+    calendarScheduleLock,
+  ])
+}
 
 function toEventType(row: EventTypeRow): EventType {
   return {
@@ -355,9 +388,21 @@ function overlapsBooking(
   )
 }
 
+function getIntervalEndInstant(
+  ownerDate: Temporal.PlainDate,
+  interval: AvailabilityInterval,
+  ownerTimeZone: string,
+) {
+  return ownerDate
+    .toPlainDateTime(Temporal.PlainTime.from(interval.end))
+    .toZonedDateTime(ownerTimeZone, { disambiguation: 'later' })
+    .toInstant()
+}
+
 function createAvailableSlot(
   localStart: Temporal.PlainDateTime,
   disambiguation: 'earlier' | 'later',
+  intervalEnd: Temporal.Instant,
   seenStarts: Set<string>,
   options: SlotGenerationOptions,
 ): AvailableSlot | undefined {
@@ -375,6 +420,7 @@ function createAvailableSlot(
 
   if (
     Temporal.Instant.compare(instant, options.now) <= 0 ||
+    Temporal.Instant.compare(end, intervalEnd) > 0 ||
     seenStarts.has(startAt) ||
     overlapsBooking(options.bookingRanges, instant, end)
   ) {
@@ -408,17 +454,18 @@ function listSlotsForOwnerDate(
     const localEnd = ownerDate.toPlainDateTime(
       Temporal.PlainTime.from(interval.end),
     )
+    const intervalEnd = getIntervalEndInstant(
+      ownerDate,
+      interval,
+      options.ownerTimeZone,
+    )
 
-    while (
-      Temporal.PlainDateTime.compare(
-        localStart.add({ minutes: options.durationMinutes }),
-        localEnd,
-      ) <= 0
-    ) {
+    while (Temporal.PlainDateTime.compare(localStart, localEnd) < 0) {
       for (const disambiguation of ['earlier', 'later'] as const) {
         const slot = createAvailableSlot(
           localStart,
           disambiguation,
+          intervalEnd,
           seenStarts,
           options,
         )
@@ -466,7 +513,7 @@ async function isEligibleBookingStart(
   const weeklyDay = availability.week.find((day) => day.weekday === weekday)
   const effectiveIntervals = getEffectiveIntervals(weeklyDay, exception)
   const localStart = ownerStart.toPlainDateTime()
-  const localEnd = localStart.add({ minutes: eventType.duration_minutes })
+  const end = start.add({ minutes: eventType.duration_minutes })
   const onGrid =
     localStart.minute % 15 === 0 &&
     localStart.second === 0 &&
@@ -482,7 +529,11 @@ async function isEligibleBookingStart(
     )
     return (
       Temporal.PlainDateTime.compare(localStart, intervalStart) >= 0 &&
-      Temporal.PlainDateTime.compare(localEnd, intervalEnd) <= 0
+      Temporal.PlainDateTime.compare(localStart, intervalEnd) < 0 &&
+      Temporal.Instant.compare(
+        end,
+        getIntervalEndInstant(ownerDate, interval, availability.timeZone),
+      ) <= 0
     )
   })
 
@@ -490,7 +541,6 @@ async function isEligibleBookingStart(
     return false
   }
 
-  const end = start.add({ minutes: eventType.duration_minutes })
   const overlaps = await database.query<{ exists: boolean }>(
     `
       SELECT EXISTS (
@@ -521,6 +571,81 @@ async function findBookingByIdempotencyKey(
   return result.rows[0]
 }
 
+type BookingGuest = {
+  email: string
+  name: string
+  timeZone: string
+}
+
+type GuestValidationResult =
+  | { error: { fieldErrors: Record<string, string[]> }; guest?: never }
+  | { error?: never; guest: BookingGuest }
+
+function containsWhitespace(value: string) {
+  for (const character of value) {
+    if (character.trim() === '') {
+      return true
+    }
+  }
+
+  return false
+}
+
+function isValidGuestEmail(email: string) {
+  const atIndex = email.indexOf('@')
+  const dotIndex = email.lastIndexOf('.')
+
+  return (
+    email.length <= 254 &&
+    !containsWhitespace(email) &&
+    atIndex > 0 &&
+    atIndex === email.lastIndexOf('@') &&
+    dotIndex > atIndex + 1 &&
+    dotIndex < email.length - 1
+  )
+}
+
+function validateBookingGuest(
+  nameInput: string,
+  emailInput: string,
+  timeZone: string,
+): GuestValidationResult {
+  const name = nameInput.trim()
+  const email = emailInput.trim()
+
+  try {
+    Temporal.Now.instant().toZonedDateTimeISO(timeZone)
+  } catch {
+    return {
+      error: { fieldErrors: { guestTimeZone: ['Неизвестный часовой пояс.'] } },
+    }
+  }
+
+  if (name.length === 0 || name.length > 100) {
+    return {
+      error: {
+        fieldErrors: {
+          guestName: [
+            name.length === 0
+              ? 'Введите имя.'
+              : 'Имя не должно быть длиннее 100 символов.',
+          ],
+        },
+      },
+    }
+  }
+
+  if (!isValidGuestEmail(email)) {
+    return {
+      error: {
+        fieldErrors: { guestEmail: ['Укажите корректный email.'] },
+      },
+    }
+  }
+
+  return { guest: { email, name, timeZone } }
+}
+
 export function createServiceHandlers(
   database?: Pool,
   clock: () => Date = () => new Date(),
@@ -534,14 +659,12 @@ export function createServiceHandlers(
     },
     async guestBookingsCreateBooking(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const headers = request.headers as Record<string, string | undefined>
       const idempotencyKey =
         headers['idempotency-key'] ?? headers['Idempotency-Key']
-      const guestName = request.body.guestName.trim()
-      const guestEmail = request.body.guestEmail.trim()
 
       if (idempotencyKey === undefined) {
         return reply.code(400).send({
@@ -551,30 +674,32 @@ export function createServiceHandlers(
         })
       }
 
-      try {
-        Temporal.Now.instant().toZonedDateTimeISO(request.body.guestTimeZone)
-      } catch {
+      const guestValidation = validateBookingGuest(
+        request.body.guestName,
+        request.body.guestEmail,
+        request.body.guestTimeZone,
+      )
+
+      if (guestValidation.error !== undefined) {
         return reply.code(400).send({
           code: 'validation_error',
           message: 'Исправьте ошибки в полях.',
-          fieldErrors: { guestTimeZone: ['Неизвестный часовой пояс.'] },
+          fieldErrors: guestValidation.error.fieldErrors,
         })
       }
 
-      if (guestName.length === 0) {
-        return reply.code(400).send({
-          code: 'validation_error',
-          message: 'Исправьте ошибки в полях.',
-          fieldErrors: { guestName: ['Введите имя.'] },
-        })
-      }
+      const {
+        email: guestEmail,
+        name: guestName,
+        timeZone: guestTimeZone,
+      } = guestValidation.guest
 
       const normalizedPayload = {
         eventTypePublicId: request.body.eventTypePublicId,
         startAt: Temporal.Instant.from(request.body.startAt).toString(),
         guestName,
         guestEmail,
-        guestTimeZone: request.body.guestTimeZone,
+        guestTimeZone,
       }
       const requestHash = createHash('sha256')
         .update(JSON.stringify(normalizedPayload))
@@ -604,6 +729,8 @@ export function createServiceHandlers(
 
           return await reply.code(200).send(toBooking(existing))
         }
+
+        await lockCalendarScheduleForBooking(client)
 
         const eventResult = await client.query<EventTypeRow>(
           `
@@ -700,7 +827,7 @@ export function createServiceHandlers(
     },
     async guestEventTypesListPublicEventTypes(_request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const result = await database.query<EventTypeRow>(`
@@ -717,7 +844,7 @@ export function createServiceHandlers(
     },
     async guestEventTypesGetPublicEventType(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const eventTypeLookup = resolvePublicEventType(
@@ -732,7 +859,7 @@ export function createServiceHandlers(
     },
     async guestEventTypesListAvailableSlots(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       try {
@@ -812,14 +939,14 @@ export function createServiceHandlers(
     },
     async ownerAvailabilityGetAvailability(_request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       return reply.code(200).send(await loadAvailability(database))
     },
     async ownerAvailabilityReplaceAvailability(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const validationMessage = validateAvailability(request.body)
@@ -832,10 +959,8 @@ export function createServiceHandlers(
         })
       }
 
-      const client = await database.connect()
-
-      try {
-        await client.query('BEGIN')
+      await withTransaction(database, async (client) => {
+        await lockCalendarScheduleForUpdate(client)
         await client.query('DELETE FROM weekly_availability_intervals')
 
         for (const day of request.body.week) {
@@ -864,19 +989,13 @@ export function createServiceHandlers(
         `,
           [request.body.timeZone],
         )
-        await client.query('COMMIT')
-      } catch (error) {
-        await client.query('ROLLBACK')
-        throw error
-      } finally {
-        client.release()
-      }
+      })
 
       return reply.code(200).send(await loadAvailability(database))
     },
     async ownerAvailabilityListAvailabilityExceptions(_request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       return reply.code(200).send({
@@ -885,15 +1004,19 @@ export function createServiceHandlers(
     },
     async ownerAvailabilityDeleteAvailabilityException(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
-      const result = await database.query(
-        'DELETE FROM availability_exceptions WHERE exception_date = $1::date',
-        [request.params.date],
-      )
+      const rowCount = await withTransaction(database, async (client) => {
+        await lockCalendarScheduleForUpdate(client)
+        const result = await client.query(
+          'DELETE FROM availability_exceptions WHERE exception_date = $1::date',
+          [request.params.date],
+        )
+        return result.rowCount
+      })
 
-      if (result.rowCount === 0) {
+      if (rowCount === 0) {
         return reply.code(404).send({
           code: 'not_found',
           message: 'Исключение доступности не найдено.',
@@ -904,7 +1027,7 @@ export function createServiceHandlers(
     },
     async ownerAvailabilityPutAvailabilityException(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const validationMessage =
@@ -920,10 +1043,8 @@ export function createServiceHandlers(
         })
       }
 
-      const client = await database.connect()
-
-      try {
-        await client.query('BEGIN')
+      await withTransaction(database, async (client) => {
+        await lockCalendarScheduleForUpdate(client)
         await client.query(
           `
           INSERT INTO availability_exceptions (exception_date, mode)
@@ -949,14 +1070,7 @@ export function createServiceHandlers(
             [request.params.date, interval.start, interval.end],
           )
         }
-
-        await client.query('COMMIT')
-      } catch (error) {
-        await client.query('ROLLBACK')
-        throw error
-      } finally {
-        client.release()
-      }
+      })
 
       const saved = (await loadAvailabilityExceptions(database)).find(
         (item) => item.date === request.params.date,
@@ -972,7 +1086,7 @@ export function createServiceHandlers(
     },
     async ownerBookingsListFutureBookings(_request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const result = await database.query<BookingRow>(
@@ -993,7 +1107,7 @@ export function createServiceHandlers(
     },
     async ownerEventTypesListEventTypes(_request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const result = await database.query<EventTypeRow>(`
@@ -1007,7 +1121,7 @@ export function createServiceHandlers(
     },
     async ownerEventTypesCreateEventType(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const name = request.body.name.trim()
@@ -1069,16 +1183,20 @@ export function createServiceHandlers(
     },
     async ownerEventTypesDeleteEventType(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       try {
-        const result = await database.query(
-          'DELETE FROM event_types WHERE public_id = $1',
-          [request.params.publicId],
-        )
+        const rowCount = await withTransaction(database, async (client) => {
+          await lockCalendarScheduleForUpdate(client)
+          const result = await client.query(
+            'DELETE FROM event_types WHERE public_id = $1',
+            [request.params.publicId],
+          )
+          return result.rowCount
+        })
 
-        if (result.rowCount === 0) {
+        if (rowCount === 0) {
           return await reply.code(404).send({
             code: 'not_found',
             message: 'Тип события не найден.',
@@ -1105,7 +1223,7 @@ export function createServiceHandlers(
     },
     async ownerEventTypesGetEventType(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const eventType = await findEventType(database, request.params.publicId)
@@ -1121,7 +1239,7 @@ export function createServiceHandlers(
     },
     async ownerEventTypesUpdateEventType(request, reply) {
       if (database === undefined) {
-        return reply.code(503).send(notImplemented)
+        return reply.code(503).send(databaseUnavailable)
       }
 
       const assignments: string[] = []
@@ -1161,16 +1279,19 @@ export function createServiceHandlers(
 
       assignments.push('updated_at = now()')
       values.push(request.params.publicId)
-      const result = await database.query<EventTypeRow>(
-        `
-        UPDATE event_types
-        SET ${assignments.join(', ')}
-        WHERE public_id = $${String(values.length)}
-        RETURNING public_id, name, description, duration_minutes,
-                  publication_state, created_at, updated_at
-      `,
-        values,
-      )
+      const result = await withTransaction(database, async (client) => {
+        await lockCalendarScheduleForUpdate(client)
+        return client.query<EventTypeRow>(
+          `
+          UPDATE event_types
+          SET ${assignments.join(', ')}
+          WHERE public_id = $${String(values.length)}
+          RETURNING public_id, name, description, duration_minutes,
+                    publication_state, created_at, updated_at
+        `,
+          values,
+        )
+      })
       const eventType = result.rows[0]
 
       if (eventType === undefined) {
