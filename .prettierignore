@@ -4,5 +4,6 @@ coverage
 reports
 .idea
 .git
+.agents
 .github/workflows/hexlet-check.yml
 Описание проекта.docx
