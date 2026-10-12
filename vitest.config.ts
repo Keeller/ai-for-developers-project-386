@@ -10,6 +10,9 @@ export default defineConfig({
       reporter: ['text', 'json-summary', 'html', 'lcov'],
       include: ['apps/api/src/**/*.ts', 'apps/web/src/**/*.{ts,tsx}'],
       exclude: ['**/*.test.{ts,tsx}', '**/generated/**'],
+      thresholds: {
+        lines: 80,
+      },
     },
   },
 })
