@@ -935,6 +935,7 @@ components:
         - eventType
         - ownerTimeZone
         - guestTimeZone
+        - slotStepMinutes
         - horizonStartsOn
         - horizonEndsOn
         - generatedAt
@@ -946,6 +947,11 @@ components:
           $ref: '#/components/schemas/IanaTimeZone'
         guestTimeZone:
           $ref: '#/components/schemas/IanaTimeZone'
+        slotStepMinutes:
+          type: number
+          enum:
+            - 30
+          description: Minutes between consecutive candidate Slot starts.
         horizonStartsOn:
           type: string
           format: date
