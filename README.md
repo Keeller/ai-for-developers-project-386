@@ -93,6 +93,7 @@ docker run --detach --rm --name calendar-booking-test-db \
 ```bash
 npm test              # unit, UI и HTTP/PostgreSQL integration-тесты
 npm run test:e2e      # локальный Playwright на production-сборке
+npm run test:coverage # тесты и обязательный минимум 80% покрытия строк
 npm run lint          # ESLint
 npm run format:check  # Prettier без изменения файлов
 npm run build         # production-сборка обоих приложений

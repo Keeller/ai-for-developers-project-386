@@ -179,4 +179,43 @@ describe('публичное Бронирование', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('anna@example.com')).toBeInTheDocument()
   })
+
+  it('позволяет Владельцу повторить загрузку Бронирований после ошибки', async () => {
+    const user = userEvent.setup()
+    vi.mocked(ownerBookingsListFutureBookings)
+      .mockResolvedValueOnce({
+        data: undefined,
+        error: {
+          code: 'internal_error',
+          message: 'Сервис временно недоступен.',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          calendarTimeZone: 'Europe/Moscow',
+          items: [],
+        },
+        error: undefined,
+      })
+
+    renderApp('/manage/bookings')
+
+    await user.click(await screen.findByRole('button', { name: 'Повторить' }))
+
+    expect(
+      await screen.findByText('Предстоящих Бронирований нет'),
+    ).toBeInTheDocument()
+    expect(ownerBookingsListFutureBookings).toHaveBeenCalledTimes(2)
+  })
+
+  it('не показывает подтверждение без данных Бронирования', () => {
+    renderApp('/book/discovery-call/success')
+
+    expect(
+      screen.getByRole('heading', { name: 'Подтверждение недоступно' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Выбрать Тип события' }),
+    ).toHaveAttribute('href', '/book')
+  })
 })

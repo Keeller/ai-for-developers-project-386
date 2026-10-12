@@ -30,7 +30,7 @@
     "docker:run": "docker compose up",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "check": "npm run contract:check && npm run format:check && npm run lint && npm test && npm run build"
+    "check": "npm run contract:check && npm run format:check && npm run lint && npm run test:coverage && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

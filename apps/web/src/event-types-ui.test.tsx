@@ -11,12 +11,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import {
   ownerEventTypesCreateEventType,
+  ownerEventTypesGetEventType,
   ownerEventTypesListEventTypes,
+  ownerEventTypesUpdateEventType,
 } from './api/client'
 
 vi.mock('./api/client', () => ({
   ownerEventTypesCreateEventType: vi.fn(),
+  ownerEventTypesGetEventType: vi.fn(),
   ownerEventTypesListEventTypes: vi.fn(),
+  ownerEventTypesUpdateEventType: vi.fn(),
 }))
 
 Object.defineProperty(window, 'matchMedia', {
@@ -97,5 +101,72 @@ describe('управление Типами событий', () => {
       await screen.findByRole('heading', { name: 'Знакомство' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Опубликован')).toBeInTheDocument()
+  })
+
+  it('загружает Тип события, сохраняет изменения и возвращает Владельца к списку', async () => {
+    const user = userEvent.setup()
+    vi.mocked(ownerEventTypesGetEventType).mockResolvedValue({
+      data: {
+        publicId: 'discovery-call',
+        name: 'Знакомство',
+        description: 'Короткий разговор',
+        durationMinutes: 30,
+        publicationState: 'published',
+        createdAt: '2026-10-12T10:00:00.000Z',
+        updatedAt: '2026-10-12T10:00:00.000Z',
+      },
+      error: undefined,
+    })
+    vi.mocked(ownerEventTypesUpdateEventType).mockResolvedValue({
+      data: {
+        publicId: 'discovery-call',
+        name: 'Подробное знакомство',
+        description: 'Обсудим задачу подробнее',
+        durationMinutes: 45,
+        publicationState: 'published',
+        createdAt: '2026-10-12T10:00:00.000Z',
+        updatedAt: '2026-10-12T10:05:00.000Z',
+      },
+      error: undefined,
+    })
+    vi.mocked(ownerEventTypesListEventTypes).mockResolvedValue({
+      data: {
+        items: [
+          {
+            publicId: 'discovery-call',
+            name: 'Подробное знакомство',
+            description: 'Обсудим задачу подробнее',
+            durationMinutes: 45,
+            publicationState: 'published',
+            createdAt: '2026-10-12T10:00:00.000Z',
+            updatedAt: '2026-10-12T10:05:00.000Z',
+          },
+        ],
+      },
+      error: undefined,
+    })
+
+    renderApp('/manage/event-types/discovery-call/edit')
+
+    const name = await screen.findByLabelText(/Название/)
+    await user.clear(name)
+    await user.type(name, 'Подробное знакомство')
+    const description = screen.getByLabelText('Описание')
+    await user.clear(description)
+    await user.type(description, 'Обсудим задачу подробнее')
+    await user.selectOptions(screen.getByLabelText('Длительность'), '45')
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    expect(ownerEventTypesUpdateEventType).toHaveBeenCalledWith({
+      path: { publicId: 'discovery-call' },
+      body: {
+        name: 'Подробное знакомство',
+        description: 'Обсудим задачу подробнее',
+        durationMinutes: 45,
+      },
+    })
+    expect(
+      await screen.findByRole('heading', { name: 'Подробное знакомство' }),
+    ).toBeInTheDocument()
   })
 })
