@@ -181,6 +181,10 @@ export type SlotWindow = {
     eventType: PublicEventType;
     ownerTimeZone: IanaTimeZone;
     guestTimeZone: IanaTimeZone;
+    /**
+     * Minutes between consecutive candidate Slot starts.
+     */
+    slotStepMinutes: 30;
     horizonStartsOn: string;
     horizonEndsOn: string;
     generatedAt: string;

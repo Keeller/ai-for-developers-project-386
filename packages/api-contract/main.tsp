@@ -256,6 +256,8 @@ model SlotWindow {
   eventType: PublicEventType;
   ownerTimeZone: IanaTimeZone;
   guestTimeZone: IanaTimeZone;
+  /** Minutes between consecutive candidate Slot starts. */
+  slotStepMinutes: 30;
   horizonStartsOn: plainDate;
   horizonEndsOn: plainDate;
   generatedAt: utcDateTime;

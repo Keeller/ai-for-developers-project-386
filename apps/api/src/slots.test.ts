@@ -82,15 +82,14 @@ describe('публичные Слоты through real HTTP and PostgreSQL', () =>
       await expect(slotsResponse.json()).resolves.toMatchObject({
         ownerTimeZone: 'Europe/Moscow',
         guestTimeZone: 'UTC',
+        slotStepMinutes: 30,
         horizonStartsOn: '2026-10-12',
         horizonEndsOn: '2026-10-25',
         days: [
           {
             ownerDate: '2026-10-12',
             slots: [
-              { startAt: '2026-10-12T06:45:00Z', guestLocalStart: '06:45' },
               { startAt: '2026-10-12T07:00:00Z', guestLocalStart: '07:00' },
-              { startAt: '2026-10-12T07:15:00Z', guestLocalStart: '07:15' },
               { startAt: '2026-10-12T07:30:00Z', guestLocalStart: '07:30' },
             ],
           },
