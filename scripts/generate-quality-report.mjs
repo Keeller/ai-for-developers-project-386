@@ -102,7 +102,7 @@ run(
     '--pattern',
     '**/*.{ts,tsx}',
     '--ignore',
-    '**/*.test.ts,**/dist/**,api/src/generated/**,web/src/api/generated/**',
+    '**/*.test.ts,**/*.test.tsx,**/dist/**,api/src/generated/**,web/src/api/generated/**',
     '--min-lines',
     '5',
     '--min-tokens',

@@ -10,7 +10,20 @@ import {
 } from '@mantine/core'
 import { Link, Route, Routes } from 'react-router-dom'
 
-const CALL_FACTS = ['30 минут', 'Без регистрации', 'Без переписки']
+import {
+  ManageEventTypesPage,
+  NewEventTypePage,
+  EditEventTypePage,
+} from './pages/event-types'
+import {
+  BookingPage,
+  BookingSuccessPage,
+  PublicEventTypesPage,
+} from './pages/booking'
+import { ManageBookingsPage } from './pages/bookings'
+import { ManageAvailabilityPage } from './pages/availability'
+
+const CALL_FACTS = ['Разная длительность', 'Без регистрации', 'Без переписки']
 
 function HomePage() {
   return (
@@ -26,8 +39,8 @@ function HomePage() {
               Выберите удобное время для звонка
             </Title>
             <Text c="dimmed" className="hero-description" size="xl" ta="center">
-              Свободные 30-минутные интервалы, запись без регистрации и долгой
-              переписки
+              Выберите подходящий формат разговора и свободный Слот без
+              регистрации и долгой переписки
             </Text>
           </Stack>
 
@@ -103,16 +116,17 @@ export default function App() {
   return (
     <Routes>
       <Route element={<HomePage />} path="/" />
+      <Route element={<PublicEventTypesPage />} path="/book" />
+      <Route element={<BookingPage />} path="/book/:publicId" />
+      <Route element={<BookingSuccessPage />} path="/book/:publicId/success" />
+      <Route element={<ManageEventTypesPage />} path="/manage/event-types" />
+      <Route element={<NewEventTypePage />} path="/manage/event-types/new" />
       <Route
-        element={
-          <StatusPage
-            badge="Скоро"
-            description="Мы готовим выбор свободного времени"
-            title="Раздел записи скоро появится"
-          />
-        }
-        path="/book"
+        element={<EditEventTypePage />}
+        path="/manage/event-types/:publicId/edit"
       />
+      <Route element={<ManageBookingsPage />} path="/manage/bookings" />
+      <Route element={<ManageAvailabilityPage />} path="/manage/availability" />
       <Route
         element={
           <StatusPage

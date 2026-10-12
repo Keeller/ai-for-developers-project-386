@@ -3,16 +3,16 @@
 [![CI](https://github.com/Keeller/ai-for-developers-project-386/actions/workflows/ci.yml/badge.svg)](https://github.com/Keeller/ai-for-developers-project-386/actions/workflows/ci.yml)
 [![hexlet-check](https://github.com/Keeller/ai-for-developers-project-386/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Keeller/ai-for-developers-project-386/actions)
 
-Учебный сервис для создания типов встреч, публикации страницы бронирования и
-записи на свободные временные слоты. Сейчас в репозитории находится базовый
-технический каркас без предметной функциональности.
+Учебный сервис, в котором Владелец календаря публикует Типы событий и
+Доступность, а Гость выбирает свободный Слот и создаёт Бронирование.
 
 ## Стек
 
 - Node.js 24 и npm workspaces
 - Fastify и TypeScript — backend
 - React, Vite и Mantine — frontend
-- Vitest — тесты
+- PostgreSQL — постоянное хранение и атомарная защита Слотов
+- Vitest и Playwright — тесты
 - ESLint и Prettier — статические проверки
 - GitHub Actions и release-please — CI и релизы
 - Docker — единый production-образ frontend и backend
@@ -28,8 +28,17 @@ npm ci
 
 ## Локальный запуск
 
+Для режима разработки сначала запустите отдельную PostgreSQL:
+
 ```bash
-npm run dev
+docker run --detach --rm --name calendar-booking-dev-db \
+  --publish 127.0.0.1:55432:5432 \
+  --env POSTGRES_DB=calendar_booking \
+  --env POSTGRES_USER=calendar_booking \
+  --env POSTGRES_PASSWORD=calendar_booking \
+  postgres:17-alpine
+
+DATABASE_URL=postgres://calendar_booking:calendar_booking@127.0.0.1:55432/calendar_booking npm run dev
 ```
 
 После запуска доступны:
@@ -38,12 +47,15 @@ npm run dev
 - проверка backend — <http://127.0.0.1:3000/api/health>.
 
 Vite перенаправляет запросы frontend с префиксом `/api` на локальный Fastify.
-Порт backend можно изменить переменной `PORT`, адрес — переменной `HOST`.
+Предметные маршруты требуют `DATABASE_URL`; без него доступна только
+проверка работоспособности. Порт backend можно изменить переменной `PORT`,
+адрес — переменной `HOST`.
 
 ## Запуск в Docker
 
 Production-образ собирает оба приложения и запускает один Fastify-процесс,
-который отдаёт API и статические файлы frontend:
+который отдаёт API и статические файлы frontend. Команда запуска поднимает
+также PostgreSQL с именованным Docker volume:
 
 ```bash
 npm run docker:build
@@ -51,25 +63,47 @@ npm run docker:run
 ```
 
 После запуска приложение доступно на <http://localhost:3000>, health endpoint —
-на <http://localhost:3000/api/health>. Аналогичный запуск через Compose:
+на <http://localhost:3000/api/health>. Собрать и запустить весь стек одной командой можно так:
 
 ```bash
 docker compose up --build
 ```
 
 Контейнер запускается от непривилегированного пользователя и содержит встроенную
-проверку работоспособности. Переменные `HOST` и `PORT` внутри готового образа по
-умолчанию равны `0.0.0.0` и `3000`.
+проверку работоспособности. Именованный volume сохраняет данные между
+перезапусками. Переменные `HOST` и `PORT` внутри готового образа по умолчанию равны
+`0.0.0.0` и `3000`.
 
 ## Проверки
 
+HTTP integration-тесты сбрасывают схему отдельной тестовой PostgreSQL, поэтому
+не указывайте им базу разработки. По умолчанию они ожидают базу на порту `55433`:
+
 ```bash
-npm test              # дымовой HTTP-тест
+docker run --detach --rm --name calendar-booking-test-db \
+  --publish 127.0.0.1:55433:5432 \
+  --env POSTGRES_DB=calendar_booking_test \
+  --env POSTGRES_USER=calendar \
+  --env POSTGRES_PASSWORD=test \
+  postgres:17-alpine
+```
+
+Другой адрес можно передать через `TEST_DATABASE_URL`.
+
+```bash
+npm test              # unit, UI и HTTP/PostgreSQL integration-тесты
+npm run test:e2e      # локальный Playwright на production-сборке
+npm run test:coverage # тесты и обязательный минимум 80% покрытия строк
 npm run lint          # ESLint
 npm run format:check  # Prettier без изменения файлов
 npm run build         # production-сборка обоих приложений
 npm run check         # все проверки последовательно
 ```
+
+Матрица из 11 браузерных сценариев описана в
+`docs/testing/booking-e2e-cases.md`. В GitHub Actions она выполняется отдельным
+гейтом в Chromium с реальным API и PostgreSQL; при падении сохраняются HTML-отчёт
+и Playwright trace.
 
 ## API-контракт
 
@@ -90,8 +124,9 @@ SDK только через `apps/web/src/api/client.ts`. Fastify получае
 того же OpenAPI-файла через `fastify-openapi-glue`. Сгенерированные файлы
 коммитятся, но вручную не редактируются.
 
-GitHub Actions выполняет `npm run check`, собирает Docker-образ и проверяет в
-контейнере frontend и `/api/health` на каждый push и pull request.
+GitHub Actions выполняет `npm run check` с PostgreSQL, собирает production-стек и
+проверяет frontend, `/api/health` и сохранность данных после рестарта на каждый push и
+pull request.
 
 ## Отчёты качества
 
