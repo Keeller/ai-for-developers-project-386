@@ -5,6 +5,9 @@ reports
 .idea
 .git
 .agents
+AGENTS.md
 packages/api-contract/generated
+apps/api/src/generated
+apps/web/src/api/generated
 .github/workflows/hexlet-check.yml
 Описание проекта.docx

@@ -1,10 +1,9 @@
-import type { components } from '@calendar/api-contract'
 import fastifyStatic from '@fastify/static'
 import fastify, { type FastifyServerOptions } from 'fastify'
 import openapiGlue from 'fastify-openapi-glue'
 import { fileURLToPath } from 'node:url'
 
-type HealthResponse = components['schemas']['HealthResponse']
+import { serviceHandlers } from './service-handlers.js'
 
 const openapiSpecification = fileURLToPath(
   new URL(
@@ -12,15 +11,6 @@ const openapiSpecification = fileURLToPath(
     import.meta.url,
   ),
 )
-
-const serviceHandlers = {
-  getHealth(): HealthResponse {
-    return {
-      status: 'ok',
-      service: 'calendar-api',
-    }
-  },
-}
 
 type BuildAppOptions = {
   server?: FastifyServerOptions

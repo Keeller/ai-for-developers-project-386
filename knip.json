@@ -16,7 +16,8 @@
     },
     "apps/api": {
       "entry": ["src/server.ts", "src/**/*.test.ts"],
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
+      "ignore": ["src/generated/**"]
     },
     "apps/web": {
       "entry": [
@@ -26,6 +27,7 @@
         "postcss.config.cjs"
       ],
       "project": ["src/**/*.{ts,tsx}", "*.{ts,cjs}"],
+      "ignore": ["src/api/generated/**"],
       "vite": {
         "config": []
       }

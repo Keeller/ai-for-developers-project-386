@@ -16,7 +16,7 @@
 - ESLint и Prettier — статические проверки
 - GitHub Actions и release-please — CI и релизы
 - Docker — единый production-образ frontend и backend
-- TypeSpec, OpenAPI и openapi-fetch — единый контракт frontend/backend
+- TypeSpec, OpenAPI и Hey API — единый контракт frontend/backend
 
 ## Установка
 
@@ -74,17 +74,21 @@ npm run check         # все проверки последовательно
 ## API-контракт
 
 HTTP-интерфейс проектируется до реализации в
-`packages/api-contract/main.tsp`. OpenAPI и общие TypeScript-типы генерируются
-одной командой:
+`packages/api-contract/main.tsp`. Одна команда последовательно генерирует
+OpenAPI, Fetch SDK для frontend и типобезопасные Fastify-обработчики для
+backend:
 
 ```bash
 npm run contract:generate
 npm run contract:check
 ```
 
-Frontend использует типизированный клиент `apps/web/src/api/client.ts`, а
-Fastify строит маршруты и проверку формата запросов из того же OpenAPI-файла.
-Сгенерированные файлы коммитятся, но вручную не редактируются.
+Результаты находятся в `packages/api-contract/generated/openapi.yaml`,
+`apps/web/src/api/generated` и `apps/api/src/generated`. Frontend импортирует
+SDK только через `apps/web/src/api/client.ts`. Fastify получает интерфейс
+обработчиков из сгенерированного кода, а маршруты и проверку запросов строит из
+того же OpenAPI-файла через `fastify-openapi-glue`. Сгенерированные файлы
+коммитятся, но вручную не редактируются.
 
 GitHub Actions выполняет `npm run check`, собирает Docker-образ и проверяет в
 контейнере frontend и `/api/health` на каждый push и pull request.
