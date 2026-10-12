@@ -576,11 +576,9 @@ components:
         - end
       properties:
         start:
-          type: string
-          format: time
+          $ref: '#/components/schemas/LocalAvailabilityTime'
         end:
-          type: string
-          format: time
+          $ref: '#/components/schemas/LocalAvailabilityTime'
       additionalProperties:
         not: {}
     AvailableSlot:
@@ -857,6 +855,9 @@ components:
       type: string
       minLength: 16
       maxLength: 128
+    LocalAvailabilityTime:
+      type: string
+      pattern: ^(?:[01][0-9]|2[0-3]):(?:00|15|30|45)$
     PublicEventType:
       type: object
       required:

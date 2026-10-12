@@ -74,6 +74,9 @@ scalar IdempotencyKey extends string;
 @format("uuid")
 scalar BookingId extends string;
 
+@pattern("^(?:[01][0-9]|2[0-3]):(?:00|15|30|45)$")
+scalar LocalAvailabilityTime extends string;
+
 enum EventTypePublicationState {
   published: "published",
   hidden: "hidden",
@@ -195,8 +198,8 @@ model UpdateEventTypeRequest {
 }
 
 model AvailabilityInterval {
-  start: plainTime;
-  end: plainTime;
+  start: LocalAvailabilityTime;
+  end: LocalAvailabilityTime;
 }
 
 model WeeklyAvailabilityDay {

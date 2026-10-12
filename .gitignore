@@ -3,6 +3,8 @@ dist/
 coverage/
 reports/
 .vitest/
+playwright-report/
+test-results/
 *.tsbuildinfo
 
 .env
