@@ -9,7 +9,7 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/api-contract/package.json ./packages/api-contract/package.json
 
-RUN --mount=type=cache,id=calendar-booking-npm,target=/root/.npm npm ci
+RUN npm ci
 
 COPY . .
 
@@ -24,8 +24,7 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/api-contract/package.json ./packages/api-contract/package.json
 
-RUN --mount=type=cache,id=calendar-booking-production-npm,target=/root/.npm \
-    npm ci --omit=dev --workspace @calendar/api --include-workspace-root=false
+RUN npm ci --omit=dev --workspace @calendar/api --include-workspace-root=false
 
 FROM node:24-alpine AS runtime
 
