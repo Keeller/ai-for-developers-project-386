@@ -7,6 +7,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
+COPY packages/api-contract/package.json ./packages/api-contract/package.json
 
 RUN --mount=type=cache,target=/root/.npm npm ci
 
@@ -21,6 +22,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
+COPY packages/api-contract/package.json ./packages/api-contract/package.json
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --workspace @calendar/api --include-workspace-root=false
@@ -36,6 +38,7 @@ WORKDIR /app
 COPY --from=production-dependencies --chown=node:node /app ./
 COPY --from=build --chown=node:node /app/apps/api/dist ./apps/api/dist
 COPY --from=build --chown=node:node /app/apps/web/dist ./apps/web/dist
+COPY --from=build --chown=node:node /app/packages/api-contract/generated ./packages/api-contract/generated
 
 USER node
 

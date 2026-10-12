@@ -11,6 +11,7 @@ export default defineConfig(
       '**/dist/**',
       '**/coverage/**',
       '**/node_modules/**',
+      'packages/api-contract/generated/**',
       '.agents/**',
       '.idea/**',
     ],
@@ -21,6 +22,7 @@ export default defineConfig(
     files: [
       'apps/api/**/*.ts',
       'scripts/**/*.{js,mjs}',
+      'packages/**/scripts/**/*.{js,mjs}',
       '**/*.config.{js,cjs,mjs,ts}',
     ],
     languageOptions: {

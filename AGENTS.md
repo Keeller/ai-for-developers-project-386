@@ -16,11 +16,15 @@
 - Unused code and dependencies: `npm run report:dead-code`
 - Duplication: `npm run report:duplicates`
 - Coverage: `npm run test:coverage`
+- Generate API contract artifacts: `npm run contract:generate`
+- Check generated API artifacts: `npm run contract:check`
 
 ## Structure
 
 - `apps/api` — Fastify API; public routes use the `/api` prefix.
 - `apps/web` — React, Vite and Mantine frontend.
+- `packages/api-contract` — TypeSpec source and generated OpenAPI/TypeScript
+  artifacts shared by frontend and backend.
 - `product` — product research and business requirements.
 - `.github/workflows` — CI, releases and the protected Hexlet check.
 
@@ -40,6 +44,24 @@ Use the default five-role triage vocabulary. See
 
 Use the single-context domain layout at the repository root. See
 `docs/agents/domain.md`.
+
+### API contract
+
+Use the design-first workflow in `docs/agents/api-contract.md` whenever public
+HTTP behavior, frontend data access, or backend routes change.
+
+## Design-first API workflow
+
+- Agree on behavior and change `packages/api-contract/main.tsp` before editing
+  frontend or backend implementation.
+- Generate and review OpenAPI and TypeScript artifacts with
+  `npm run contract:generate`; generated files are never hand-edited.
+- Frontend calls the backend only through `apps/web/src/api/client.ts` and
+  generated contract types. Backend handlers and validation derive from the
+  same OpenAPI contract.
+- Keep the TypeSpec change, generated artifacts, backend handler, frontend
+  consumer, and contract tests in one pull request.
+- Run `npm run contract:check` to reject stale generated artifacts.
 
 ## Git workflow
 
