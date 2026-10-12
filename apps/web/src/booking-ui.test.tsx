@@ -146,6 +146,100 @@ describe('публичное Бронирование', () => {
     expect(screen.getByText(/Europe\/Moscow/)).toBeInTheDocument()
   })
 
+  it('сохраняет контакты и обновляет Слоты после конфликта Бронирования', async () => {
+    const user = userEvent.setup()
+    vi.mocked(guestEventTypesGetPublicEventType).mockResolvedValue({
+      data: {
+        publicId: 'discovery-call',
+        name: 'Знакомство',
+        durationMinutes: 30,
+      },
+      error: undefined,
+    })
+    vi.mocked(guestEventTypesListAvailableSlots)
+      .mockResolvedValueOnce({
+        data: {
+          eventType: {
+            publicId: 'discovery-call',
+            name: 'Знакомство',
+            durationMinutes: 30,
+          },
+          ownerTimeZone: 'Europe/Moscow',
+          guestTimeZone: 'Europe/Moscow',
+          horizonStartsOn: '2026-10-12',
+          horizonEndsOn: '2026-10-25',
+          generatedAt: '2026-10-12T05:00:00Z',
+          days: [
+            {
+              ownerDate: '2026-10-12',
+              slots: [
+                {
+                  startAt: '2026-10-12T09:00:00Z',
+                  endAt: '2026-10-12T09:30:00Z',
+                  guestLocalDate: '2026-10-12',
+                  guestLocalStart: '12:00',
+                  guestUtcOffset: '+03:00',
+                },
+              ],
+            },
+          ],
+        },
+        error: undefined,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          eventType: {
+            publicId: 'discovery-call',
+            name: 'Знакомство',
+            durationMinutes: 30,
+          },
+          ownerTimeZone: 'Europe/Moscow',
+          guestTimeZone: 'Europe/Moscow',
+          horizonStartsOn: '2026-10-12',
+          horizonEndsOn: '2026-10-25',
+          generatedAt: '2026-10-12T05:01:00Z',
+          days: [
+            {
+              ownerDate: '2026-10-12',
+              slots: [
+                {
+                  startAt: '2026-10-12T09:30:00Z',
+                  endAt: '2026-10-12T10:00:00Z',
+                  guestLocalDate: '2026-10-12',
+                  guestLocalStart: '12:30',
+                  guestUtcOffset: '+03:00',
+                },
+              ],
+            },
+          ],
+        },
+        error: undefined,
+      })
+    vi.mocked(guestBookingsCreateBooking).mockResolvedValue({
+      data: undefined,
+      error: {
+        code: 'slot_unavailable',
+        message: 'Слот уже недоступен. Выберите другой.',
+      },
+    })
+
+    renderApp('/book/discovery-call')
+    await user.click(await screen.findByRole('button', { name: /12:00/ }))
+    await user.type(screen.getByLabelText(/Имя/), 'Борис')
+    await user.type(screen.getByLabelText(/Email/), 'boris@example.com')
+    await user.click(screen.getByRole('button', { name: 'Подтвердить' }))
+
+    expect(
+      await screen.findByText('Слот уже недоступен. Выберите другой.'),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: /12:00/ }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /12:30/ }))
+    expect(screen.getByLabelText(/Имя/)).toHaveValue('Борис')
+    expect(screen.getByLabelText(/Email/)).toHaveValue('boris@example.com')
+  })
+
   it('показывает Владельцу Бронирование в общем списке', async () => {
     vi.mocked(ownerBookingsListFutureBookings).mockResolvedValue({
       data: {

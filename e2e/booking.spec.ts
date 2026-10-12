@@ -1,125 +1,159 @@
-import { expect, test } from '@playwright/test'
+import {
+  createBooking,
+  createEventType,
+  expect,
+  makeEveryDayAvailable,
+  openBookingForm,
+  submitBooking,
+  test,
+} from './fixtures'
 
-const weekdays = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const
-
-test('Гость бронирует Слот, глобальный конфликт отклоняется, Владелец видит Бронирование', async ({
+test('TC-E2E-07: Гость проходит полный сценарий Бронирования', async ({
   page,
   request,
 }) => {
-  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-  const shortPublicId = `short-${suffix}`
-  const longPublicId = `long-${suffix}`
-  const shortName = `Знакомство ${suffix}`
-  const email = `anna-${suffix}@example.com`
-  const tomorrow = new Date()
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
-  const tomorrowWeekday = weekdays[(tomorrow.getUTCDay() + 6) % 7]
-
-  for (const eventType of [
-    { publicId: shortPublicId, name: shortName, durationMinutes: 30 },
-    {
-      publicId: longPublicId,
-      name: `Консультация ${suffix}`,
-      durationMinutes: 60,
-    },
-  ]) {
-    const response = await request.post('/api/manage/event-types', {
-      data: eventType,
-    })
-    expect(response.status()).toBe(201)
-  }
-
-  const availabilityResponse = await request.put('/api/manage/availability', {
-    data: {
-      timeZone: 'Europe/Moscow',
-      week: weekdays.map((weekday) => ({
-        weekday,
-        enabled: weekday === tomorrowWeekday,
-        intervals:
-          weekday === tomorrowWeekday ? [{ start: '09:00', end: '12:00' }] : [],
-      })),
-    },
+  await createEventType(request, {
+    publicId: 'discovery-call',
+    name: 'Знакомство',
+    description: 'Короткий вводный разговор',
+    durationMinutes: 30,
   })
-  expect(availabilityResponse.status()).toBe(200)
-
-  const slotsResponse = await request.get(
-    `/api/event-types/${shortPublicId}/slots?guestTimeZone=Europe%2FMoscow`,
-  )
-  expect(slotsResponse.status()).toBe(200)
-  const slots = (await slotsResponse.json()) as {
-    days: Array<{
-      slots: Array<{
-        guestLocalDate: string
-        guestLocalStart: string
-        startAt: string
-      }>
-    }>
-  }
-  const selected = slots.days
-    .flatMap((day) => day.slots)
-    .find((slot) => slot.guestLocalStart === '09:00')
-  expect(selected).toBeDefined()
-
-  if (selected === undefined) {
-    throw new Error('Test setup did not produce the expected 09:00 slot')
-  }
+  await makeEveryDayAvailable(request)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/book')
-  await page.getByRole('link', { name: new RegExp(shortName) }).click()
-  await page.getByLabel('Часовой пояс гостя').fill('Europe/Moscow')
-  await page.getByRole('button', { name: 'Показать время в этой зоне' }).click()
-  const selectedDay = page.locator('section').filter({
-    has: page.getByRole('heading', { name: selected.guestLocalDate }),
+  await openBookingForm(page, {
+    publicId: 'discovery-call',
+    name: 'Знакомство',
   })
-  const slotButton = selectedDay.getByRole('button', { name: /^09:00 / })
-  await slotButton.focus()
-  await slotButton.press('Enter')
-  await page.getByLabel(/Имя/).fill('Анна')
-  await page.getByLabel(/Email/).fill(email)
   await expect(page.getByText('Учебное демо без авторизации')).toBeVisible()
-  await page.getByRole('button', { name: 'Подтвердить' }).click()
+  await submitBooking(page, {
+    name: 'Анна',
+    email: 'anna@example.com',
+  })
 
   await expect(
     page.getByRole('heading', { name: 'Бронирование подтверждено' }),
   ).toBeVisible()
+  await expect(page.getByText('Знакомство', { exact: true })).toBeVisible()
+  await expect(page.getByText('30 минут', { exact: true })).toBeVisible()
+  await expect(page.getByText('Часовой пояс: Europe/Moscow')).toBeVisible()
   await expect(page).not.toHaveURL(/anna|example\.com/i)
+})
 
-  await page.goto(`/book/${shortPublicId}`)
+test('TC-E2E-08: занятый Слот больше не предлагается Гостю', async ({
+  page,
+  request,
+}) => {
+  await createEventType(request, {
+    publicId: 'busy-call',
+    name: 'Занятый разговор',
+  })
+  await makeEveryDayAvailable(request)
+  const bookedSlot = await createBooking(request, {
+    eventTypePublicId: 'busy-call',
+    guestName: 'Первый Гость',
+    guestEmail: 'first@example.com',
+  })
+
+  await page.goto('/book/busy-call')
   await page.getByLabel('Часовой пояс гостя').fill('Europe/Moscow')
   await page.getByRole('button', { name: 'Показать время в этой зоне' }).click()
-  const refreshedDay = page.locator('section').filter({
-    has: page.getByRole('heading', { name: selected.guestLocalDate }),
+
+  const bookedDay = page.locator('section').filter({
+    has: page.getByRole('heading', { name: bookedSlot.guestLocalDate }),
   })
+  await expect(bookedDay.getByRole('button', { name: /^09:00 / })).toHaveCount(
+    0,
+  )
+  await expect(bookedDay.getByRole('button', { name: /^09:30 / })).toBeVisible()
+})
+
+test('TC-E2E-09: конкурентное Бронирование другого Типа события отклоняется', async ({
+  context,
+  page,
+  request,
+}) => {
+  await createEventType(request, {
+    publicId: 'short-call',
+    name: 'Короткий разговор',
+    durationMinutes: 30,
+  })
+  await createEventType(request, {
+    publicId: 'long-call',
+    name: 'Длинный разговор',
+    durationMinutes: 60,
+  })
+  await makeEveryDayAvailable(request)
+
+  const secondGuestPage = await context.newPage()
+  await openBookingForm(page, {
+    publicId: 'short-call',
+    name: 'Короткий разговор',
+  })
+  await openBookingForm(secondGuestPage, {
+    publicId: 'long-call',
+    name: 'Длинный разговор',
+  })
+
+  await submitBooking(page, {
+    name: 'Анна',
+    email: 'anna@example.com',
+  })
+  await expect(
+    page.getByRole('heading', { name: 'Бронирование подтверждено' }),
+  ).toBeVisible()
+
+  await submitBooking(secondGuestPage, {
+    name: 'Борис',
+    email: 'boris@example.com',
+  })
+  await expect(
+    secondGuestPage.getByText('Слот уже недоступен. Выберите другой.'),
+  ).toBeVisible()
+  const refreshedDay = secondGuestPage.locator('section').first()
   await expect(
     refreshedDay.getByRole('button', { name: /^09:00 / }),
   ).toHaveCount(0)
+  await refreshedDay.getByRole('button', { name: /^09:30 / }).click()
+  await expect(secondGuestPage.getByLabel('Имя')).toHaveValue('Борис')
+  await expect(secondGuestPage.getByLabel('Email')).toHaveValue(
+    'boris@example.com',
+  )
+})
 
-  const conflictResponse = await request.post('/api/bookings', {
-    data: {
-      eventTypePublicId: longPublicId,
-      startAt: selected.startAt,
-      guestName: 'Борис',
-      guestEmail: `boris-${suffix}@example.com`,
-      guestTimeZone: 'Europe/Moscow',
-    },
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
+test('TC-E2E-10: Владелец видит Бронирование в общем списке', async ({
+  page,
+  request,
+}) => {
+  await createEventType(request, {
+    publicId: 'owner-list-call',
+    name: 'Разговор из списка',
+    durationMinutes: 45,
   })
-  expect(conflictResponse.status()).toBe(409)
-  await expect(conflictResponse.json()).resolves.toMatchObject({
-    code: 'slot_unavailable',
+  await makeEveryDayAvailable(request)
+  await createBooking(request, {
+    eventTypePublicId: 'owner-list-call',
+    guestName: 'Елена',
+    guestEmail: 'elena@example.com',
   })
 
-  await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/manage/bookings')
-  await expect(page.getByRole('heading', { name: shortName })).toBeVisible()
-  await expect(page.getByText(email)).toBeVisible()
+  const booking = page.getByRole('article').filter({
+    has: page.getByRole('heading', { name: 'Разговор из списка' }),
+  })
+  await expect(booking).toContainText('45 минут')
+  await expect(booking).toContainText('Елена')
+  await expect(booking).toContainText('elena@example.com')
+  await expect(booking).toContainText(/—/)
+})
+
+test('TC-E2E-11: подтверждение нельзя открыть напрямую', async ({ page }) => {
+  await page.goto('/book/unknown-call/success')
+
+  await expect(
+    page.getByRole('heading', { name: 'Подтверждение недоступно' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Выбрать Тип события' }),
+  ).toHaveAttribute('href', '/book')
 })
