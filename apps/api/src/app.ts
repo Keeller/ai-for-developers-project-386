@@ -1,5 +1,26 @@
+import type { components } from '@calendar/api-contract'
 import fastifyStatic from '@fastify/static'
 import fastify, { type FastifyServerOptions } from 'fastify'
+import openapiGlue from 'fastify-openapi-glue'
+import { fileURLToPath } from 'node:url'
+
+type HealthResponse = components['schemas']['HealthResponse']
+
+const openapiSpecification = fileURLToPath(
+  new URL(
+    '../../../packages/api-contract/generated/openapi.yaml',
+    import.meta.url,
+  ),
+)
+
+const serviceHandlers = {
+  getHealth(): HealthResponse {
+    return {
+      status: 'ok',
+      service: 'calendar-api',
+    }
+  },
+}
 
 type BuildAppOptions = {
   server?: FastifyServerOptions
@@ -9,10 +30,10 @@ type BuildAppOptions = {
 export function buildApp({ server = {}, staticRoot }: BuildAppOptions = {}) {
   const app = fastify(server)
 
-  app.get('/api/health', async () => ({
-    status: 'ok',
-    service: 'calendar-api',
-  }))
+  app.register(openapiGlue, {
+    specification: openapiSpecification,
+    serviceHandlers,
+  })
 
   if (staticRoot !== undefined) {
     app.register(fastifyStatic, {

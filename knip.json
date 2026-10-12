@@ -19,11 +19,25 @@
       "project": ["src/**/*.ts"]
     },
     "apps/web": {
-      "entry": ["src/main.tsx", "vite.config.ts", "postcss.config.cjs"],
+      "entry": [
+        "src/main.tsx",
+        "src/api/client.ts",
+        "vite.config.ts",
+        "postcss.config.cjs"
+      ],
       "project": ["src/**/*.{ts,tsx}", "*.{ts,cjs}"],
       "vite": {
         "config": []
       }
+    },
+    "packages/api-contract": {
+      "entry": [],
+      "project": [],
+      "ignoreDependencies": [
+        "@typespec/http",
+        "@typespec/openapi",
+        "@typespec/openapi3"
+      ]
     }
   }
 }
