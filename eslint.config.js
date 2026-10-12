@@ -12,6 +12,8 @@ export default defineConfig(
       '**/coverage/**',
       '**/node_modules/**',
       'packages/api-contract/generated/**',
+      'apps/api/src/generated/**',
+      'apps/web/src/api/generated/**',
       '.agents/**',
       '.idea/**',
     ],
