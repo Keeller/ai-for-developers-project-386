@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    fileParallelism: false,
     include: ['apps/**/*.test.{ts,tsx}', 'packages/**/*.test.ts'],
     coverage: {
       provider: 'v8',

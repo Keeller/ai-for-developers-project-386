@@ -49,10 +49,10 @@ describe('public routes', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Свободные 30-минутные интервалы, запись без регистрации и долгой переписки',
+        'Выберите подходящий формат разговора и свободный Слот без регистрации и долгой переписки',
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('30 минут')).toBeInTheDocument()
+    expect(screen.getByText('Разная длительность')).toBeInTheDocument()
     expect(screen.getByText('Без регистрации')).toBeInTheDocument()
     expect(screen.getByText('Без переписки')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Записаться' })).toHaveAttribute(
@@ -68,22 +68,7 @@ describe('public routes', () => {
     await user.click(screen.getByRole('link', { name: 'Записаться' }))
 
     expect(
-      screen.getByRole('heading', {
-        level: 1,
-        name: 'Раздел записи скоро появится',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('Мы готовим выбор свободного времени'),
-    ).toBeInTheDocument()
-
-    await user.click(screen.getByRole('link', { name: 'На главную' }))
-
-    expect(
-      screen.getByRole('heading', {
-        level: 1,
-        name: 'Выберите удобное время для звонка',
-      }),
+      screen.getByRole('heading', { level: 1, name: 'Выберите Тип события' }),
     ).toBeInTheDocument()
   })
 

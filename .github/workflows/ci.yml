@@ -13,6 +13,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: calendar_booking_test
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: calendar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U calendar -d calendar_booking_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+
+    env:
+      TEST_DATABASE_URL: postgres://calendar:test@127.0.0.1:5432/calendar_booking_test
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -43,7 +61,7 @@ jobs:
           retention-days: 14
 
   container:
-    name: Build and smoke-test Docker image
+    name: Build and smoke-test production stack
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -51,15 +69,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Build image
-        run: docker build --tag calendar-booking:ci .
-
-      - name: Start container and smoke-test application
+      - name: Start production stack and smoke-test persistence
         run: |
-          docker run --detach \
-            --name calendar-booking-ci \
-            --publish 127.0.0.1:3000:3000 \
-            calendar-booking:ci
+          docker compose --project-name calendar-booking-ci up --build --detach
 
           for attempt in {1..30}; do
             health="$(curl --fail --silent http://127.0.0.1:3000/api/health || true)"
@@ -67,15 +79,33 @@ jobs:
             if [ "$health" = '{"status":"ok","service":"calendar-api"}' ]; then
               curl --fail --silent http://127.0.0.1:3000/ \
                 | grep --fixed-strings '<div id="root"></div>'
-              exit 0
+              break
             fi
 
             sleep 1
           done
 
-          docker logs calendar-booking-ci
-          exit 1
+          test "$health" = '{"status":"ok","service":"calendar-api"}'
 
-      - name: Stop container
+          curl --fail --silent \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data '{"publicId":"ci-persistence","name":"CI persistence","durationMinutes":30}' \
+            http://127.0.0.1:3000/api/manage/event-types
+
+          docker compose --project-name calendar-booking-ci restart app
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then
+              break
+            fi
+
+            sleep 1
+          done
+
+          curl --fail --silent http://127.0.0.1:3000/api/manage/event-types \
+            | grep --fixed-strings 'ci-persistence'
+
+      - name: Stop production stack
         if: always()
-        run: docker rm --force calendar-booking-ci || true
+        run: docker compose --project-name calendar-booking-ci down --volumes
