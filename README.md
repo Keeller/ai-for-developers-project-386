@@ -100,6 +100,11 @@ npm run build         # production-сборка обоих приложений
 npm run check         # все проверки последовательно
 ```
 
+Матрица из 11 браузерных сценариев описана в
+`docs/testing/booking-e2e-cases.md`. В GitHub Actions она выполняется отдельным
+гейтом в Chromium с реальным API и PostgreSQL; при падении сохраняются HTML-отчёт
+и Playwright trace.
+
 ## API-контракт
 
 HTTP-интерфейс проектируется до реализации в

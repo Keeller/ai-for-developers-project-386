@@ -186,13 +186,16 @@ export function BookingPage() {
 
     const error = result.error as ApiError | undefined
     setFieldErrors(error?.fieldErrors ?? {})
-    setMessage(error?.message ?? 'Не удалось создать Бронирование.')
 
     if (error?.code === 'slot_unavailable') {
       setSelectedSlot(null)
       idempotencyKey.current = crypto.randomUUID()
       await loadSlots(timeZone)
+      setMessage(error.message)
+      return
     }
+
+    setMessage(error?.message ?? 'Не удалось создать Бронирование.')
   }
 
   return (
