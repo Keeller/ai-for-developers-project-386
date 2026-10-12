@@ -60,11 +60,13 @@ union DurationMinutes {
 scalar IanaTimeZone extends string;
 
 @minLength(1)
-@maxLength(100)
+@maxLength(200)
 scalar GuestName extends string;
 
-@format("email")
-@maxLength(254)
+// The handler trims surrounding whitespace before validating the normalized
+// address, so transport validation deliberately accepts a wider raw value.
+@minLength(1)
+@maxLength(512)
 scalar GuestEmail extends string;
 
 @minLength(16)
@@ -73,6 +75,9 @@ scalar IdempotencyKey extends string;
 
 @format("uuid")
 scalar BookingId extends string;
+
+@pattern("^(?:[01][0-9]|2[0-3]):(?:00|15|30|45)$")
+scalar LocalAvailabilityTime extends string;
 
 enum EventTypePublicationState {
   published: "published",
@@ -195,8 +200,8 @@ model UpdateEventTypeRequest {
 }
 
 model AvailabilityInterval {
-  start: plainTime;
-  end: plainTime;
+  start: LocalAvailabilityTime;
+  end: LocalAvailabilityTime;
 }
 
 model WeeklyAvailabilityDay {

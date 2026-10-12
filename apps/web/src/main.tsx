@@ -9,7 +9,13 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App from './App.tsx'
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')
+
+if (rootElement === null) {
+  throw new Error('Root element is missing')
+}
+
+createRoot(rootElement).render(
   <StrictMode>
     <MantineProvider defaultColorScheme="light">
       <BrowserRouter>

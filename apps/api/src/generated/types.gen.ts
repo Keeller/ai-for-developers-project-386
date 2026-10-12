@@ -36,8 +36,8 @@ export type AvailabilityExceptionList = {
 export type AvailabilityExceptionMode = 'closed' | 'custom';
 
 export type AvailabilityInterval = {
-    start: string;
-    end: string;
+    start: LocalAvailabilityTime;
+    end: LocalAvailabilityTime;
     [key: string]: unknown;
 };
 
@@ -143,6 +143,8 @@ export type HealthResponse = {
 export type IanaTimeZone = string;
 
 export type IdempotencyKey = string;
+
+export type LocalAvailabilityTime = string;
 
 export type PublicEventType = {
     publicId: EventTypePublicId;
